@@ -1,0 +1,88 @@
+from casadi import *
+from numpy import *
+from pylab import *
+
+
+t = SX.sym('t')
+
+# States
+x = SX.sym('x',2)
+
+
+# Parameters
+u = SX.sym('u', 2) # Dilution Factor & Substrate concentration in the feed
+
+theta = SX.sym('theta', 4)
+
+parameters  = vertcat(u, theta) 
+
+rhs = vertcat(((theta[0]*x[1]/(theta[1]*x[0]+x[1]))-u[0]-theta[3])*x[0],-((theta[0]*x[1]/(theta[1]*x[0]+x[1]))*x[0])/theta[2]+u[0]*(u[1]-x[1]))
+
+dae = {'x':x, 'p':parameters, 't':t, 'ode':rhs}
+
+ts = linspace(0, 100, 10000)  # 10 seconds with 1000 time steps
+
+integrator = integrator('integrator', 'cvodes', dae, {'grid':ts, 'output_t0':True})
+
+measure = integrator(x0=[1,0.01], p=[0.05, 5.0, 0.310, 0.180, 0.550, 0.050])
+
+#-----------------------------------------------------------------------------------------------
+
+from casadi import *
+from numpy import *
+from pylab import *
+
+# First of all we have to initialize the v ectors for the MINLP
+
+
+# Time
+t = SX.sym('t')
+
+# States
+x = SX.sym('x', 2)
+
+
+# Parameter
+u = SX.sym('u', 2) # Dilution Factor &Substrate concentration in the feed
+
+theta = SX.sym('theta', 4)
+
+parameters = vertcat(u, theta)
+
+
+'''Now that we have define states, parameters, integers and thir ijnitial conditions we can define the
+model and the objective function (residual) that we have to minimize'''
+
+rhs = vertcat(((theta[0]*x[1]/(theta[1]+x[1]))-u[0]-theta[3])*x[0],\
+             -((theta[0]*x[1]/(theta[1]+x[1]))*x[0])/theta[2]+u[0]*(u[1]-x[1]))
+    
+dae = {'x':x, 'p':parameters, 't':t, 'ode':rhs}
+
+ts = linspace(0, 100, 10000)  # 10 seconds with 1000 time steps
+
+integrator = integrator('integrator', 'cvodes', dae, {'grid':ts, 'output_t0':True})
+
+prediction = integrator(x0=[1,0.01], p=[0.05, 5.0, 0.301, 0.286, 0.515, 0.043])
+
+
+'''Now we can plot the solutions so we can see the differences'''
+plot(ts, array(prediction['xf'])[0,:], 'r-')
+plot(ts, array(measure['xf'])[0,:], 'b-')
+xlabel('t')
+ylabel('dx1dt')
+show()
+
+plot(ts, array(prediction['xf'])[1,:],'r-')
+plot(ts, array(measure['xf'])[1,:],'b-')
+xlabel('t')
+ylabel('dx2dt')
+show()
+
+
+'''Now we can calculate the residual'''
+res = 0
+for i in range(len(ts)):
+    res = res + (measure['xf'][i]-prediction['xf'][i])**2
+       
+print('\nThe residual is: ', res)   
+
